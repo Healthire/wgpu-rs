@@ -10,6 +10,7 @@
 #[path = "../framework.rs"]
 mod framework;
 
+use vk_shader_macros::include_glsl;
 use zerocopy::{AsBytes, FromBytes};
 
 use wgpu::vertex_attr_array;
@@ -118,14 +119,10 @@ impl framework::Example for Example {
         println!("Press left/right arrow keys to change sample_count.");
         let sample_count = 4;
 
-        let vs_bytes =
-            framework::load_glsl(include_str!("shader.vert"), framework::ShaderStage::Vertex);
-        let fs_bytes = framework::load_glsl(
-            include_str!("shader.frag"),
-            framework::ShaderStage::Fragment,
-        );
-        let vs_module = device.create_shader_module(&vs_bytes);
-        let fs_module = device.create_shader_module(&fs_bytes);
+        let vs_module =
+            device.create_shader_module(include_glsl!("examples/msaa-line/shader.vert"));
+        let fs_module =
+            device.create_shader_module(include_glsl!("examples/msaa-line/shader.frag"));
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             bind_group_layouts: &[],
@@ -145,7 +142,7 @@ impl framework::Example for Example {
         let mut vertex_data = vec![];
 
         let max = 50;
-        for i in 0 .. max {
+        for i in 0..max {
             let percent = i as f32 / max as f32;
             let (sin, cos) = (percent * 2.0 * std::f32::consts::PI).sin_cos();
             vertex_data.push(Vertex {
@@ -177,29 +174,29 @@ impl framework::Example for Example {
         (this, None)
     }
 
-    fn update(&mut self, event: winit::event::WindowEvent) {
-        match event {
-            winit::event::WindowEvent::KeyboardInput { input, .. } => {
-                if let winit::event::ElementState::Pressed = input.state {
-                    match input.virtual_keycode {
-                        Some(winit::event::VirtualKeyCode::Left) => {
-                            if self.sample_count >= 2 {
-                                self.sample_count = self.sample_count >> 1;
-                                self.rebuild_pipeline = true;
-                            }
-                        }
-                        Some(winit::event::VirtualKeyCode::Right) => {
-                            if self.sample_count <= 16 {
-                                self.sample_count = self.sample_count << 1;
-                                self.rebuild_pipeline = true;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            _ => {}
-        }
+    fn update(&mut self) {
+        // match event {
+        //     winit::event::WindowEvent::KeyboardInput { input, .. } => {
+        //         if let winit::event::ElementState::Pressed = input.state {
+        //             match input.virtual_keycode {
+        //                 Some(winit::event::VirtualKeyCode::Left) => {
+        //                     if self.sample_count >= 2 {
+        //                         self.sample_count = self.sample_count >> 1;
+        //                         self.rebuild_pipeline = true;
+        //                     }
+        //                 }
+        //                 Some(winit::event::VirtualKeyCode::Right) => {
+        //                     if self.sample_count <= 16 {
+        //                         self.sample_count = self.sample_count << 1;
+        //                         self.rebuild_pipeline = true;
+        //                     }
+        //                 }
+        //                 _ => {}
+        //             }
+        //         }
+        //     }
+        //     _ => {}
+        // }
     }
 
     fn resize(
@@ -259,7 +256,7 @@ impl framework::Example for Example {
             });
             rpass.set_pipeline(&self.pipeline);
             rpass.set_vertex_buffer(0, &self.vertex_buffer, 0, 0);
-            rpass.draw(0 .. self.vertex_count, 0 .. 1);
+            rpass.draw(0..self.vertex_count, 0..1);
         }
 
         encoder.finish()

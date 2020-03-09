@@ -1,6 +1,7 @@
 #[path = "../framework.rs"]
 mod framework;
 
+use vk_shader_macros::include_glsl;
 use zerocopy::AsBytes as _;
 
 const SKYBOX_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
@@ -84,16 +85,8 @@ impl framework::Example for Skybox {
         });
 
         // Create the render pipeline
-        let vs_bytes = framework::load_glsl(
-            include_str!("skybox_vert.glsl"),
-            framework::ShaderStage::Vertex,
-        );
-        let fs_bytes = framework::load_glsl(
-            include_str!("skybox_frag.glsl"),
-            framework::ShaderStage::Fragment,
-        );
-        let vs_module = device.create_shader_module(&vs_bytes);
-        let fs_module = device.create_shader_module(&fs_bytes);
+        let vs_module = device.create_shader_module(include_glsl!("examples/skybox/shader.vert"));
+        let fs_module = device.create_shader_module(include_glsl!("examples/skybox/shader.frag"));
 
         let aspect = sc_desc.width as f32 / sc_desc.height as f32;
         let uniforms = Self::generate_uniforms(aspect);
@@ -239,7 +232,7 @@ impl framework::Example for Skybox {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer {
                         buffer: &uniform_buf,
-                        range: 0 .. uniform_buf_size as wgpu::BufferAddress,
+                        range: 0..uniform_buf_size as wgpu::BufferAddress,
                     },
                 },
                 wgpu::Binding {
@@ -265,7 +258,7 @@ impl framework::Example for Skybox {
         )
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
+    fn update(&mut self) {
         //empty
     }
 
@@ -328,7 +321,7 @@ impl framework::Example for Skybox {
 
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
-            rpass.draw(0 .. 3 as u32, 0 .. 1);
+            rpass.draw(0..3 as u32, 0..1);
         }
         init_encoder.finish()
     }

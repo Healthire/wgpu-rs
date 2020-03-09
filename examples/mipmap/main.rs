@@ -1,6 +1,7 @@
 #[path = "../framework.rs"]
 mod framework;
 
+use vk_shader_macros::include_glsl;
 use zerocopy::{AsBytes, FromBytes};
 
 use wgpu::vertex_attr_array;
@@ -34,7 +35,7 @@ fn create_vertices() -> Vec<Vertex> {
 fn create_texels(size: usize, cx: f32, cy: f32) -> Vec<u8> {
     use std::iter;
 
-    (0 .. size * size)
+    (0..size * size)
         .flat_map(|id| {
             // get high five for recognizing this ;)
             let mut x = 4.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
@@ -102,12 +103,8 @@ impl Example {
             bind_group_layouts: &[&bind_group_layout],
         });
 
-        let vs_bytes =
-            framework::load_glsl(include_str!("blit.vert"), framework::ShaderStage::Vertex);
-        let fs_bytes =
-            framework::load_glsl(include_str!("blit.frag"), framework::ShaderStage::Fragment);
-        let vs_module = device.create_shader_module(&vs_bytes);
-        let fs_module = device.create_shader_module(&fs_bytes);
+        let vs_module = device.create_shader_module(include_glsl!("examples/mipmap/blit.vert"));
+        let fs_module = device.create_shader_module(include_glsl!("examples/mipmap/blit.frag"));
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: &pipeline_layout,
@@ -150,12 +147,12 @@ impl Example {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Nearest,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: wgpu::CompareFunction::Undefined,
         });
 
-        let views = (0 .. mip_count)
+        let views = (0..mip_count)
             .map(|mip| {
                 texture.create_view(&wgpu::TextureViewDescriptor {
                     format: TEXTURE_FORMAT,
@@ -169,7 +166,7 @@ impl Example {
             })
             .collect::<Vec<_>>();
 
-        for target_mip in 1 .. mip_count as usize {
+        for target_mip in 1..mip_count as usize {
             let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
                 layout: &bind_group_layout,
                 bindings: &[
@@ -197,7 +194,7 @@ impl Example {
             });
             rpass.set_pipeline(&pipeline);
             rpass.set_bind_group(0, &bind_group, &[]);
-            rpass.draw(0 .. 4, 0 .. 1);
+            rpass.draw(0..4, 0..1);
         }
     }
 }
@@ -295,7 +292,7 @@ impl framework::Example for Example {
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Linear,
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: wgpu::CompareFunction::Undefined,
         });
@@ -314,7 +311,7 @@ impl framework::Example for Example {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer {
                         buffer: &uniform_buf,
-                        range: 0 .. 64,
+                        range: 0..64,
                     },
                 },
                 wgpu::Binding {
@@ -330,12 +327,8 @@ impl framework::Example for Example {
         });
 
         // Create the render pipeline
-        let vs_bytes =
-            framework::load_glsl(include_str!("draw.vert"), framework::ShaderStage::Vertex);
-        let fs_bytes =
-            framework::load_glsl(include_str!("draw.frag"), framework::ShaderStage::Fragment);
-        let vs_module = device.create_shader_module(&vs_bytes);
-        let fs_module = device.create_shader_module(&fs_bytes);
+        let vs_module = device.create_shader_module(include_glsl!("examples/mipmap/draw.vert"));
+        let fs_module = device.create_shader_module(include_glsl!("examples/mipmap/draw.frag"));
 
         let draw_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: &pipeline_layout,
@@ -387,7 +380,7 @@ impl framework::Example for Example {
         (this, Some(init_encoder.finish()))
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
+    fn update(&mut self) {
         //empty
     }
 
@@ -434,7 +427,7 @@ impl framework::Example for Example {
             rpass.set_pipeline(&self.draw_pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
             rpass.set_vertex_buffer(0, &self.vertex_buf, 0, 0);
-            rpass.draw(0 .. 4, 0 .. 1);
+            rpass.draw(0..4, 0..1);
         }
 
         encoder.finish()

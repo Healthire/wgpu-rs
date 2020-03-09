@@ -1,5 +1,3 @@
-use winit::event::WindowEvent;
-
 #[cfg_attr(rustfmt, rustfmt_skip)]
 #[allow(unused)]
 pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
@@ -24,16 +22,6 @@ pub enum ShaderStage {
     Compute,
 }
 
-pub fn load_glsl(code: &str, stage: ShaderStage) -> Vec<u32> {
-    let ty = match stage {
-        ShaderStage::Vertex => glsl_to_spirv::ShaderType::Vertex,
-        ShaderStage::Fragment => glsl_to_spirv::ShaderType::Fragment,
-        ShaderStage::Compute => glsl_to_spirv::ShaderType::Compute,
-    };
-
-    wgpu::read_spirv(glsl_to_spirv::compile(&code, ty).unwrap()).unwrap()
-}
-
 pub trait Example: 'static + Sized {
     fn init(
         sc_desc: &wgpu::SwapChainDescriptor,
@@ -44,7 +32,7 @@ pub trait Example: 'static + Sized {
         sc_desc: &wgpu::SwapChainDescriptor,
         device: &wgpu::Device,
     ) -> Option<wgpu::CommandBuffer>;
-    fn update(&mut self, event: WindowEvent);
+    fn update(&mut self);
     fn render(
         &mut self,
         frame: &wgpu::SwapChainOutput,
@@ -52,9 +40,11 @@ pub trait Example: 'static + Sized {
     ) -> wgpu::CommandBuffer;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 async fn run_async<E: Example>(title: &str) {
     use winit::{
         event,
+        event::WindowEvent,
         event_loop::{ControlFlow, EventLoop},
     };
 
@@ -109,13 +99,14 @@ async fn run_async<E: Example>(title: &str) {
     .await
     .unwrap();
 
-    let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
-        extensions: wgpu::Extensions {
-            anisotropic_filtering: false,
-        },
-        limits: wgpu::Limits::default(),
-    })
-    .await;
+    let (device, queue) = adapter
+        .request_device(&wgpu::DeviceDescriptor {
+            extensions: wgpu::Extensions {
+                anisotropic_filtering: false,
+            },
+            limits: wgpu::Limits::default(),
+        })
+        .await;
 
     let mut sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
@@ -168,9 +159,9 @@ async fn run_async<E: Example>(title: &str) {
                     *control_flow = ControlFlow::Exit;
                 }
                 _ => {
-                    example.update(event);
+                    example.update();
                 }
-            }
+            },
             event::Event::RedrawRequested(_) => {
                 let frame = swap_chain
                     .get_next_texture()
@@ -183,8 +174,102 @@ async fn run_async<E: Example>(title: &str) {
     });
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn run<E: Example>(title: &str) {
     futures::executor::block_on(run_async::<E>(title));
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn run<E: Example>(title: &str) {
+    use std::{cell::RefCell, rc::Rc};
+    use wasm_bindgen::{closure::Closure, JsCast};
+
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+    console_log::init_with_level(log::Level::Info).unwrap();
+
+    let f: Rc<RefCell<Option<Closure<dyn FnMut(f64)>>>> = Rc::new(RefCell::new(None));
+    let g = Rc::clone(&f);
+
+    let document = web_sys::window()
+        .and_then(|win| win.document())
+        .expect("Cannot get document");
+    document.set_title(title);
+
+    let canvas = document
+        .create_element("canvas")
+        .expect("Cannot create canvas")
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .expect("Cannot get canvas element");
+    document
+        .body()
+        .expect("Cannot get document body")
+        .append_child(&canvas)
+        .expect("Cannot insert canvas into document body");
+
+    let size = (800, 600);
+    canvas
+        .set_attribute("width", &format!("{}", size.0))
+        .expect("cannot set width");
+    canvas
+        .set_attribute("height", &format!("{}", size.1))
+        .expect("cannot set height");
+
+    log::info!("Init!");
+
+    let surface = wgpu::Surface::create_with_canvas(&canvas);
+    wasm_bindgen_futures::spawn_local(async move {
+        let adapter = wgpu::Adapter::request(
+            &wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+            },
+            wgpu::BackendBit::PRIMARY,
+        )
+        .await
+        .expect("No adapter found");
+        let (device, queue) = adapter
+            .request_device(&wgpu::DeviceDescriptor {
+                extensions: wgpu::Extensions {
+                    anisotropic_filtering: false,
+                },
+                limits: wgpu::Limits::default(),
+            })
+            .await;
+
+        let sc_desc = wgpu::SwapChainDescriptor {
+            usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
+            format: wgpu::TextureFormat::Bgra8Unorm,
+            width: size.0,
+            height: size.1,
+            present_mode: wgpu::PresentMode::Mailbox,
+        };
+        let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
+
+        log::info!("Initializing the example...");
+        let (mut example, init_command_buf) = E::init(&sc_desc, &device);
+        if let Some(command_buf) = init_command_buf {
+            queue.submit(&[command_buf]);
+        }
+
+        *g.borrow_mut() = Some(Closure::wrap(Box::new(move |_: f64| {
+            let frame = swap_chain
+                .get_next_texture()
+                .expect("Timeout when acquiring next swap chain texture");
+            let command_buffer = example.render(&frame, &device);
+
+            queue.submit(&[command_buffer]);
+
+            web_sys::window()
+                .expect("no global window")
+                .request_animation_frame(f.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+                .expect("could not request animation frame");
+        }) as Box<dyn FnMut(f64)>));
+
+        web_sys::window()
+            .expect("no global window")
+            .request_animation_frame(g.borrow().as_ref().unwrap().as_ref().unchecked_ref())
+            .expect("could not request animation frame");
+    })
 }
 
 // This allows treating the framework as a standalone example,

@@ -1,6 +1,7 @@
 #[path = "../framework.rs"]
 mod framework;
 
+use vk_shader_macros::include_glsl;
 use zerocopy::{AsBytes, FromBytes};
 
 #[repr(C)]
@@ -66,7 +67,7 @@ fn create_vertices() -> (Vec<Vertex>, Vec<u16>) {
 fn create_texels(size: usize) -> Vec<u8> {
     use std::iter;
 
-    (0 .. size * size)
+    (0..size * size)
         .flat_map(|id| {
             // get high five for recognizing this ;)
             let cx = 3.0 * (id % size) as f32 / (size - 1) as f32 - 2.0;
@@ -202,7 +203,7 @@ impl framework::Example for Example {
             mag_filter: wgpu::FilterMode::Nearest,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
-            lod_min_clamp: -100.0,
+            lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             compare: wgpu::CompareFunction::Undefined,
         });
@@ -221,7 +222,7 @@ impl framework::Example for Example {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer {
                         buffer: &uniform_buf,
-                        range: 0 .. 64,
+                        range: 0..64,
                     },
                 },
                 wgpu::Binding {
@@ -237,14 +238,8 @@ impl framework::Example for Example {
         });
 
         // Create the render pipeline
-        let vs_bytes =
-            framework::load_glsl(include_str!("shader.vert"), framework::ShaderStage::Vertex);
-        let fs_bytes = framework::load_glsl(
-            include_str!("shader.frag"),
-            framework::ShaderStage::Fragment,
-        );
-        let vs_module = device.create_shader_module(&vs_bytes);
-        let fs_module = device.create_shader_module(&fs_bytes);
+        let vs_module = device.create_shader_module(include_glsl!("examples/cube/shader.vert"));
+        let fs_module = device.create_shader_module(include_glsl!("examples/cube/shader.frag"));
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             layout: &pipeline_layout,
@@ -307,7 +302,7 @@ impl framework::Example for Example {
         (this, Some(init_encoder.finish()))
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
+    fn update(&mut self) {
         //empty
     }
 
@@ -353,9 +348,9 @@ impl framework::Example for Example {
             });
             rpass.set_pipeline(&self.pipeline);
             rpass.set_bind_group(0, &self.bind_group, &[]);
-            rpass.set_index_buffer(&self.index_buf, 0,0 );
+            rpass.set_index_buffer(&self.index_buf, 0, 0);
             rpass.set_vertex_buffer(0, &self.vertex_buf, 0, 0);
-            rpass.draw_indexed(0 .. self.index_count as u32, 0, 0 .. 1);
+            rpass.draw_indexed(0..self.index_count as u32, 0, 0..1);
         }
 
         encoder.finish()

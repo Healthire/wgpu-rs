@@ -3,6 +3,7 @@ use std::{mem, ops::Range, rc::Rc};
 #[path = "../framework.rs"]
 mod framework;
 
+use vk_shader_macros::include_glsl;
 use zerocopy::{AsBytes, FromBytes};
 
 use wgpu::vertex_attr_array;
@@ -241,7 +242,7 @@ impl framework::Example for Example {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer {
                         buffer: &plane_uniform_buf,
-                        range: 0 .. entity_uniform_size,
+                        range: 0..entity_uniform_size,
                     },
                 }],
                 label: None,
@@ -317,7 +318,7 @@ impl framework::Example for Example {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer {
                             buffer: &uniform_buf,
-                            range: 0 .. entity_uniform_size,
+                            range: 0..entity_uniform_size,
                         },
                     }],
                     label: None,
@@ -351,7 +352,7 @@ impl framework::Example for Example {
         });
         let shadow_view = shadow_texture.create_default_view();
 
-        let mut shadow_target_views = (0 .. 2)
+        let mut shadow_target_views = (0..2)
             .map(|i| {
                 Some(shadow_texture.create_view(&wgpu::TextureViewDescriptor {
                     format: Self::SHADOW_FORMAT,
@@ -374,7 +375,7 @@ impl framework::Example for Example {
                     a: 1.0,
                 },
                 fov: 60.0,
-                depth: 1.0 .. 20.0,
+                depth: 1.0..20.0,
                 target_view: shadow_target_views[0].take().unwrap(),
             },
             Light {
@@ -386,7 +387,7 @@ impl framework::Example for Example {
                     a: 1.0,
                 },
                 fov: 45.0,
-                depth: 1.0 .. 20.0,
+                depth: 1.0..20.0,
                 target_view: shadow_target_views[1].take().unwrap(),
             },
         ];
@@ -435,19 +436,15 @@ impl framework::Example for Example {
                     binding: 0,
                     resource: wgpu::BindingResource::Buffer {
                         buffer: &uniform_buf,
-                        range: 0 .. uniform_size,
+                        range: 0..uniform_size,
                     },
                 }],
                 label: None,
             });
 
             // Create the render pipeline
-            let vs_bytes =
-                framework::load_glsl(include_str!("bake.vert"), framework::ShaderStage::Vertex);
-            let fs_bytes =
-                framework::load_glsl(include_str!("bake.frag"), framework::ShaderStage::Fragment);
-            let vs_module = device.create_shader_module(&vs_bytes);
-            let fs_module = device.create_shader_module(&fs_bytes);
+            let vs_module = device.create_shader_module(include_glsl!("examples/shadow/bake.vert"));
+            let fs_module = device.create_shader_module(include_glsl!("examples/shadow/bake.frag"));
 
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 layout: &pipeline_layout,
@@ -548,14 +545,14 @@ impl framework::Example for Example {
                         binding: 0,
                         resource: wgpu::BindingResource::Buffer {
                             buffer: &uniform_buf,
-                            range: 0 .. uniform_size,
+                            range: 0..uniform_size,
                         },
                     },
                     wgpu::Binding {
                         binding: 1,
                         resource: wgpu::BindingResource::Buffer {
                             buffer: &light_uniform_buf,
-                            range: 0 .. light_uniform_size,
+                            range: 0..light_uniform_size,
                         },
                     },
                     wgpu::Binding {
@@ -571,14 +568,10 @@ impl framework::Example for Example {
             });
 
             // Create the render pipeline
-            let vs_bytes =
-                framework::load_glsl(include_str!("forward.vert"), framework::ShaderStage::Vertex);
-            let fs_bytes = framework::load_glsl(
-                include_str!("forward.frag"),
-                framework::ShaderStage::Fragment,
-            );
-            let vs_module = device.create_shader_module(&vs_bytes);
-            let fs_module = device.create_shader_module(&fs_bytes);
+            let vs_module =
+                device.create_shader_module(include_glsl!("examples/shadow/forward.vert"));
+            let fs_module =
+                device.create_shader_module(include_glsl!("examples/shadow/forward.frag"));
 
             let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 layout: &pipeline_layout,
@@ -656,7 +649,7 @@ impl framework::Example for Example {
         (this, None)
     }
 
-    fn update(&mut self, _event: winit::event::WindowEvent) {
+    fn update(&mut self) {
         //empty
     }
 
@@ -757,7 +750,7 @@ impl framework::Example for Example {
             let temp_buf_data = device.create_buffer_mapped(&wgpu::BufferDescriptor {
                 size: total_size as u64,
                 usage: wgpu::BufferUsage::COPY_SRC,
-                label: None
+                label: None,
             });
             // FIXME: Align and use `LayoutVerified`
             for (light, slot) in self
@@ -806,7 +799,7 @@ impl framework::Example for Example {
                 pass.set_bind_group(1, &entity.bind_group, &[]);
                 pass.set_index_buffer(&entity.index_buf, 0, 0);
                 pass.set_vertex_buffer(0, &entity.vertex_buf, 0, 0);
-                pass.draw_indexed(0 .. entity.index_count as u32, 0, 0 .. 1);
+                pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
             }
         }
 
@@ -842,7 +835,7 @@ impl framework::Example for Example {
                 pass.set_bind_group(1, &entity.bind_group, &[]);
                 pass.set_index_buffer(&entity.index_buf, 0, 0);
                 pass.set_vertex_buffer(0, &entity.vertex_buf, 0, 0);
-                pass.draw_indexed(0 .. entity.index_count as u32, 0, 0 .. 1);
+                pass.draw_indexed(0..entity.index_count as u32, 0, 0..1);
             }
         }
 

@@ -23,12 +23,12 @@ default = []
 # Make Vulkan backend available on platforms where it is by default not, e.g. macOS
 vulkan = ["wgn/vulkan-portability"]
 
-[dependencies.wgn]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.wgn]
 package = "wgpu-native"
 version = "0.5"
 #git = "https://github.com/gfx-rs/wgpu"
 
-[dependencies.wgc]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.wgc]
 package = "wgpu-core"
 version = "0.5"
 #git = "https://github.com/gfx-rs/wgpu"
@@ -39,21 +39,128 @@ version = "0.5"
 #git = "https://github.com/gfx-rs/wgpu"
 
 [dependencies]
+log = "0.4"
+raw-window-handle = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arrayvec = "0.5"
 smallvec = "1"
 raw-window-handle = "0.3"
 parking_lot = "0.10"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = { version = "0.2.60" }
+wasm-bindgen-futures = "0.4.9"
+js-sys = "0.3.37"
+web-sys = { version = "0.3.37", features = [
+    "Document",
+    "Event",
+    "Gpu",
+    "GpuAdapter",
+    "GpuAddressMode",
+    "GpuBindGroup",
+    "GpuBindGroupEntry",
+    "GpuBindGroupDescriptor",
+    "GpuBindGroupLayout",
+    "GpuBindGroupLayoutEntry",
+    "GpuBindGroupLayoutDescriptor",
+    "GpuBlendDescriptor",
+    "GpuBlendFactor",
+    "GpuBlendOperation",
+    "GpuBindingType",
+    "GpuBuffer",
+    "GpuBufferBinding",
+    "GpuBufferCopyView",
+    "GpuBufferDescriptor",
+    "GpuCanvasContext",
+    "GpuColorDict",
+    "GpuColorStateDescriptor",
+    "GpuCommandBuffer",
+    "GpuCommandBufferDescriptor",
+    "GpuCommandEncoder",
+    "GpuCommandEncoderDescriptor",
+    "GpuCompareFunction",
+    "GpuComputePassDescriptor",
+    "GpuComputePassEncoder",
+    "GpuComputePipeline",
+    "GpuComputePipelineDescriptor",
+    "GpuCullMode",
+    "GpuDepthStencilStateDescriptor",
+    "GpuDevice",
+    "GpuDeviceDescriptor",
+    "GpuDeviceLostInfo",
+    "GpuExtent3dDict",
+    "GpuFilterMode",
+    "GpuFrontFace",
+    "GpuIndexFormat",
+    "GpuInputStepMode",
+    "GpuLimits",
+    "GpuLoadOp",
+    "GpuOrigin3dDict",
+    "GpuOutOfMemoryError",
+    "GpuPipelineLayout",
+    "GpuPipelineLayoutDescriptor",
+    "GpuPowerPreference",
+    "GpuPrimitiveTopology",
+    "GpuProgrammableStageDescriptor",
+    "GpuQueue",
+    "GpuRasterizationStateDescriptor",
+    "GpuRenderPassColorAttachmentDescriptor",
+    "GpuRenderPassDepthStencilAttachmentDescriptor",
+    "GpuRenderPassDescriptor",
+    "GpuRenderPassEncoder",
+    "GpuRenderPipeline",
+    "GpuRenderPipelineDescriptor",
+    "GpuRequestAdapterOptions",
+    "GpuSampler",
+    "GpuSamplerDescriptor",
+    "GpuShaderModule",
+    "GpuShaderModuleDescriptor",
+    "GpuStencilOperation",
+    "GpuStencilStateFaceDescriptor",
+    "GpuStoreOp",
+    "GpuSwapChain",
+    "GpuSwapChainDescriptor",
+    "GpuTexture",
+    "GpuTextureAspect",
+    "GpuTextureComponentType",
+    "GpuTextureCopyView",
+    "GpuTextureDescriptor",
+    "GpuTextureDimension",
+    "GpuTextureFormat",
+    "GpuTextureViewDescriptor",
+    "GpuTextureViewDimension",
+    "GpuTextureView",
+    "GpuUncapturedErrorEvent",
+    "GpuValidationError",
+    "GpuVertexAttributeDescriptor",
+    "GpuVertexBufferLayoutDescriptor",
+    "GpuVertexFormat",
+    "GpuVertexStateDescriptor",
+    "GpuVertexAttributeDescriptor",
+    "HtmlCanvasElement",
+    "Navigator",
+    "Node",
+    "NodeList",
+    "Window",
+] }
+
+
 [dev-dependencies]
 cgmath = "0.17"
-env_logger = "0.7"
-glsl-to-spirv = "0.1"
-log = "0.4"
+env_logger = "0.7.1"
+vk-shader-macros = "0.2.2"
 png = "0.15"
-winit = "0.22"
-rand = "0.7.2"
-zerocopy = "0.3"
+rand = { version = "0.7.2", features = [ "small_rng" ] }
+zerocopy = "0.2"
 futures = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+winit = "0.22"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+console_error_panic_hook = "0.1.6"
+console_log = "0.1.2"
 
 [[example]]
 name="hello-compute"
