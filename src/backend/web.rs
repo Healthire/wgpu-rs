@@ -261,21 +261,16 @@ pub fn device_poll(_device: &DeviceId, _maintain: crate::Maintain) {
 }
 
 pub fn device_create_shader_module(device: &DeviceId, spv: &[u32]) -> ShaderModuleId {
-    // ShaderModuleId(
-    //     device
-    //         .0
-    //         .create_shader_module(&web_sys::GpuShaderModuleDescriptor::new(
-    //             &js_sys::Uint32Array::from(spv),
-    //         )),
-    // )
-    let shader_module_descriptor = js_sys::Map::new();
-    shader_module_descriptor.set(&JsValue::from_str("code"), &js_sys::Uint32Array::from(spv));
+    // Real hacky way to construct a web_sys::GpuShaderModuleDescriptor with a Uint32Array
+    let desc_object: JsValue = js_sys::Object::from_entries(
+        &js_sys::Map::new().set(&JsValue::from_str("code"), &js_sys::Uint32Array::from(spv)),
+    )
+    .unwrap()
+    .into();
     ShaderModuleId(
-        device.0.create_shader_module(
-            &shader_module_descriptor
-                .dyn_into()
-                .expect("could not cast Map into GpuShaderModuleDescriptor"),
-        ),
+        device
+            .0
+            .create_shader_module(&web_sys::GpuShaderModuleDescriptor::from(desc_object)),
     )
 }
 
