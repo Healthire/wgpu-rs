@@ -1,4 +1,9 @@
-use std::{future::Future, ops::Range};
+use std::{
+    future::Future,
+    ops::Range,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -151,7 +156,7 @@ pub async fn request_adapter(
         }
     };
 
-    let gpu_adapter = JsFuture::from(adapter_promise)
+    let gpu_adapter = JsFutureSend(JsFuture::from(adapter_promise))
         .await
         .and_then(|js| js.dyn_into::<web_sys::GpuAdapter>())
         .expect("Cannot get Adapter");
@@ -178,11 +183,11 @@ pub async fn adapter_request_device(
         .extensions(&to_gpu_extension_names(&desc.extensions))
         .limits(&to_gpu_limits(&desc.limits));
 
-    let gpu_device: web_sys::GpuDevice = JsFuture::from(
+    let gpu_device: web_sys::GpuDevice = JsFutureSend(JsFuture::from(
         adapter
             .0
             .request_device_with_descriptor(&gpu_device_descriptor),
-    )
+    ))
     .await
     .expect("Could not get GpuDevice")
     .dyn_into()
@@ -420,12 +425,12 @@ pub fn buffer_map_read(
     buffer: &crate::Buffer,
     start: BufferAddress,
     size: BufferAddress,
-) -> impl Future<Output = Result<crate::BufferReadMapping, crate::BufferAsyncErr>> {
+) -> impl Future<Output = Result<crate::BufferReadMapping, crate::BufferAsyncErr>> + Send {
     // web does not support mapping with an offset
     assert_eq!(start, 0);
 
     let buffer_id = buffer.id.clone();
-    let map_future = JsFuture::from(buffer.id.0.map_read_async());
+    let map_future = JsFutureSend(JsFuture::from(buffer.id.0.map_read_async()));
 
     async move {
         let array_buffer = map_future.await.map_err(|_| crate::BufferAsyncErr)?;
@@ -465,12 +470,12 @@ pub fn buffer_map_write(
     buffer: &crate::Buffer,
     start: BufferAddress,
     size: BufferAddress,
-) -> impl Future<Output = Result<crate::BufferWriteMapping, crate::BufferAsyncErr>> {
+) -> impl Future<Output = Result<crate::BufferWriteMapping, crate::BufferAsyncErr>> + Send {
     // web does not support mapping with an offset
     assert_eq!(start, 0);
 
     let buffer_id = buffer.id.clone();
-    let map_future = JsFuture::from(buffer.id.0.map_write_async());
+    let map_future = JsFutureSend(JsFuture::from(buffer.id.0.map_write_async()));
 
     async move {
         let array_buffer = map_future.await.map_err(|_| crate::BufferAsyncErr)?;
@@ -1708,5 +1713,19 @@ fn to_gpu_texture_dimension(
         TextureDimension::D1 => web_sys::GpuTextureDimension::N1d,
         TextureDimension::D2 => web_sys::GpuTextureDimension::N2d,
         TextureDimension::D3 => web_sys::GpuTextureDimension::N3d,
+    }
+}
+
+// Wrapper for JsFuture to make it Send
+pub struct JsFutureSend(JsFuture);
+
+// This is safe only because this module is only built for the wasm32 target which doesn't support
+// threads. If built for a target which does support threads this is NOT SOUND.
+unsafe impl Send for JsFutureSend {}
+
+impl Future for JsFutureSend {
+    type Output = Result<JsValue, JsValue>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        unsafe { Future::poll(self.map_unchecked_mut(|f| &mut f.0), cx) }
     }
 }
